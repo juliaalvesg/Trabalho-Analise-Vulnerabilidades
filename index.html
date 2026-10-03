@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pegue a moeda – TP Computação Paralela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fundo: #23282e;
+    --fundo-ponto: #2e343b;
+    --pcb: #151617;
+    --serigrafia: #f2f2ee;
+    --metal: #b9bcbe;
+    --tinta: #e8ebee;
+    --tinta-suave: #9aa3ad;
+    --destaque: #7fd1c7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    padding: 32px 16px 48px;
+    color: var(--tinta);
+    font-family: "Poppins", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    background-color: var(--fundo);
+    background-image: radial-gradient(var(--fundo-ponto) 1.2px, transparent 1.3px);
+    background-size: 18px 18px;
+  }
+
+  .aparelho {
+    position: relative;
+    max-width: 980px;
+    margin: 0 auto;
+    background: var(--pcb);
+    border-radius: 22px;
+    padding: 34px 26px 44px;
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) 150px;
+    gap: 22px;
+    align-items: center;
+    box-shadow: 0 3px 0 #000, 0 24px 34px -16px rgba(0, 0, 0, 0.7);
+    color: var(--serigrafia);
+  }
+  .furo {
+    position: absolute;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--fundo);
+    border: 5px solid #d9d9d4;
+  }
+  .furo.a { top: 14px; left: 14px; }
+  .furo.b { top: 14px; right: 14px; }
+  .furo.c { bottom: 14px; left: 14px; }
+  .furo.d { bottom: 14px; right: 14px; }
+
+  .serigrafia {
+    font-family: "DejaVu Sans", Verdana, Geneva, sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    color: var(--serigrafia);
+    user-select: none;
+  }
+  .nome-placa {
+    position: absolute;
+    left: 52px; bottom: 12px;
+    font-size: 19px;
+  }
+  .nome-placa small { font-size: 12px; opacity: 0.7; margin-left: 10px; }
+  .rotulo-i2c {
+    position: absolute;
+    right: 52px; bottom: 14px;
+    font-size: 11px;
+    opacity: 0.8;
+    border-left: 1px solid var(--serigrafia);
+    padding-left: 8px;
+  }
+
+  .lado { display: grid; justify-items: center; gap: 4px; }
+  .cruz {
+    display: grid;
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: auto 46px auto 46px auto 46px;
+    align-items: center;
+    justify-items: center;
+    column-gap: 2px;
+  }
+  .tecla-wrap { display: grid; justify-items: center; gap: 3px; }
+  .tecla {
+    width: 42px; height: 42px;
+    border-radius: 4px;
+    background: linear-gradient(145deg, #d4d6d7, #8f9395);
+    border: 1px solid #5e6264;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .tecla::after {
+    content: "";
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 35%, #f0e2bf, #b89a62 70%);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  }
+  .tecla.apertada::after, .tecla:active::after {
+    background: radial-gradient(circle at 45% 45%, #d8c597, #8d7344 75%);
+    transform: scale(0.92);
+  }
+  .tecla.fixa { cursor: default; }
+  .tecla:focus-visible { outline: 2px solid #ffd54a; outline-offset: 3px; }
+
+  .direita-botoes {
+    display: grid;
+    grid-template-columns: 52px 52px;
+    gap: 18px 10px;
+    justify-items: center;
+  }
+
+  .moldura {
+    background: #f4f4f1;
+    padding: 12px;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 2px #d0d0cb;
+  }
+  .vidro { background: #000; padding: 6px; }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+  }
+
+  @media (max-width: 820px) {
+    .aparelho { grid-template-columns: 1fr; padding: 30px 18px 56px; }
+    .lado-esq { order: 2; }
+    .lado-dir { order: 3; }
+    .tela { order: 1; }
+    .lado-esq, .lado-dir { display: none; }
+    .nome-placa { left: 52px; bottom: 16px; font-size: 16px; }
+    .nome-placa small { display: none; }
+    .rotulo-i2c { display: none; }
+  }
+
+  .painel {
+    max-width: 980px;
+    margin: 28px auto 0;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 28px;
+  }
+  @media (max-width: 820px) { .painel { grid-template-columns: 1fr; gap: 20px; } }
+
+  .painel h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--destaque); margin-bottom: 10px; }
+  .painel p, .painel td, .painel label { font-size: 14px; }
+  .suave { color: var(--tinta-suave); }
+
+  .linha-con { display: flex; gap: 6px; margin: 6px 0; }
+  input[type="text"] {
+    font: inherit; font-size: 14px;
+    flex: 1; min-width: 0;
+    padding: 7px 9px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    border: 1px solid #3d454e;
+    border-radius: 4px;
+    background: #181c21;
+    color: var(--tinta);
+  }
+  button {
+    font: inherit; font-size: 14px; font-weight: 600;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 4px;
+    background: var(--destaque);
+    color: #10302c;
+    cursor: pointer;
+  }
+  button:hover { background: #9fe0d8; }
+  :focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+
+  #status b { font-weight: 700; }
+  #status.on b { color: #6fdc8c; }
+  #status.off b { color: #ff7b72; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { border-bottom: 1px solid #2f363e; padding: 5px 0; }
+  td:last-child { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 700; color: var(--destaque); }
+
+  .ajustes label { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; }
+  .ajustes input { accent-color: var(--destaque); width: 15px; height: 15px; }
+
+  #listaJogadores { margin-top: 10px; }
+  .jogador { font-size: 13px; padding: 3px 0; display: flex; gap: 8px; align-items: baseline; }
+  .jogador .cor { width: 10px; height: 10px; display: inline-block; flex: none; }
+</style>
+</head>
+<body>
+
+<div class="aparelho">
+  <span class="furo a"></span><span class="furo b"></span>
+  <span class="furo c"></span><span class="furo d"></span>
+
+  <!-- Lado esquerdo: direcional + start -->
+  <div class="lado lado-esq">
+    <div class="cruz">
+      <span></span><span class="serigrafia">Up</span><span></span>
+      <span></span><div class="tecla" data-tecla="ArrowUp" tabindex="0" aria-label="Cima"></div><span></span>
+      <span class="serigrafia">Left</span><span></span><span class="serigrafia">Right</span>
+      <div class="tecla" data-tecla="ArrowLeft" tabindex="0" aria-label="Esquerda"></div><span></span><div class="tecla" data-tecla="ArrowRight" tabindex="0" aria-label="Direita"></div>
+      <span></span><span class="serigrafia">Down</span><span></span>
+      <span></span><div class="tecla" data-tecla="ArrowDown" tabindex="0" aria-label="Baixo"></div><span></span>
+    </div>
+    <div class="tecla-wrap" style="margin-top:18px">
+      <span class="serigrafia">Start</span>
+      <div class="tecla" id="btnStart" tabindex="0" aria-label="Zerar placar"></div>
+    </div>
+  </div>
+
+  <!-- Tela -->
+  <div class="tela">
+    <div class="moldura"><div class="vidro">
+      <canvas id="tela" width="256" height="224"></canvas>
+    </div></div>
+  </div>
+
+  <!-- Lado direito -->
+  <div class="lado lado-dir">
+    <div class="direita-botoes">
+      <span class="serigrafia">A</span><span class="serigrafia">B</span>
+      <div class="tecla fixa" aria-hidden="true"></div>
+      <div class="tecla fixa" aria-hidden="true"></div>
+    </div>
+    <div class="tecla-wrap" style="margin-top:26px">
+      <span class="serigrafia">Menu</span>
+      <div class="tecla" id="btnMenu" tabindex="0" aria-label="Ir para os ajustes"></div>
+    </div>
+  </div>
+
+  <span class="serigrafia nome-placa">TP Paralela<small>ESP32 + MMA8452</small></span>
+  <span class="serigrafia rotulo-i2c">SDA 21 · SCL 22 · I2C</span>
+</div>
+
+<div class="painel">
+  <section>
+    <h2>Servidor</h2>
+    <form class="linha-con" onsubmit="return false">
+      <input type="text" id="endereco" placeholder="ex: 54.12.34.56:8080" autocomplete="off" aria-label="Endereço do servidor">
+      <button id="btnConectar" type="submit">Conectar</button>
+    </form>
+    <p id="status" class="off">Situação: <b id="txtStatus">desconectado</b></p>
+    <div id="listaJogadores"></div>
+  </section>
+
+  <section>
+    <h2>Medições</h2>
+    <table>
+      <tr><td>Mensagens por segundo</td><td id="mMsgs">0</td></tr>
+      <tr><td>Quadros por segundo</td><td id="mFps">0</td></tr>
+      <tr><td>Atraso médio</td><td><span id="mAtraso">–</span> ms</td></tr>
+      <tr><td>Jogadores</td><td id="mJog">0</td></tr>
+    </table>
+  </section>
+
+  <section class="ajustes" id="ajustes">
+    <h2>Ajustes</h2>
+    <label><input type="checkbox" id="invX"> Inverter eixo X</label>
+    <label><input type="checkbox" id="invY"> Inverter eixo Y</label>
+    <label><input type="checkbox" id="trocarEixos"> Trocar X e Y</label>
+    <label><input type="checkbox" id="modoTeclado"> Jogar pelo teclado</label>
+    <p class="suave" style="margin-top:6px">Start zera o placar. O direcional e as setas do teclado servem para testar sem a placa.</p>
+  </section>
+</div>
+
+<script>
+// =============================================================
+//  CONFIGURAÇÃO
+// =============================================================
+const SENSIBILIDADE = 0.12;   // quanto a inclinação acelera a bolinha
+const ATRITO        = 0.92;   // 1 = sem atrito, menor = para mais rápido
+const RAIO_BOLA     = 5;      // em pixels da tela (256 x 224)
+const RAIO_MOEDA    = 4;
+
+// Paleta curta, no espírito de console 8 bits
+const COR = {
+  fundo:     "#000000",
+  hud:       "#fcfcfc",
+  bloco:     "#8b3fd1",
+  blocoLuz:  "#d39af7",
+  blocoMeio: "#a95ce6",
+  blocoSomb: "#4b1580",
+  nuvem:     "#bff3f0",
+  moeda:     "#fcc33c",
+  moedaSomb: "#b8740c",
+  aviso:     "#fcfcfc"
+};
+const CORES_JOG = ["#fc7460", "#3cbcfc", "#80d010", "#fca044", "#f878f8", "#fcfcfc"];
+
+// Área de jogo dentro da tela
+const W = 256, H = 224;
+const CAMPO = { x0: 8, y0: 24, x1: 248, y1: 200 };
+
+// =============================================================
+//  ELEMENTOS
+// =============================================================
+const tela = document.getElementById("tela");
+const ctx  = tela.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+const inputEndereco = document.getElementById("endereco");
+
+if (location.protocol.startsWith("http") && location.host) {
+  inputEndereco.value = location.host;
+}
+
+// =============================================================
+//  FONTE DE PIXEL 3x5 (desenhada à mão, não depende de internet)
+// =============================================================
+const GLIFOS = {
+  "0":"111101101101111","1":"010110010010111","2":"111001111100111","3":"111001111001111",
+  "4":"101101111001001","5":"111100111001111","6":"111100111101111","7":"111001010010010",
+  "8":"111101111101111","9":"111101111001111",
+  "A":"010101111101101","B":"110101110101110","C":"011100100100011","D":"110101101101110",
+  "E":"111100110100111","F":"111100110100100","G":"011100101101011","H":"101101111101101",
+  "I":"111010010010111","J":"001001001101010","K":"101101110101101","L":"100100100100111",
+  "M":"101111111101101","N":"110101101101101","O":"010101101101010","P":"110101110100100",
+  "Q":"010101101110011","R":"110101110101101","S":"011100010001110","T":"111010010010010",
+  "U":"101101101101111","V":"101101101101010","W":"101101111111101","X":"101101010101101",
+  "Y":"101101010010010","Z":"111001010100111",
+  ":":"000010000010000","-":"000000111000000",".":"000000000000010","/":"001001010100100",
+  "!":"010010010000010"," ":"000000000000000"
+};
+
+function larguraTexto(txt, escala = 1) {
+  return txt.length * 4 * escala - escala;
+}
+
+function texto(txt, x, y, cor, escala = 1) {
+  ctx.fillStyle = cor;
+  txt = txt.toUpperCase();
+  for (let i = 0; i < txt.length; i++) {
+    const g = GLIFOS[txt[i]] || GLIFOS[" "];
+    for (let k = 0; k < 15; k++) {
+      if (g[k] === "1") {
+        ctx.fillRect(x + (i * 4 + (k % 3)) * escala, y + Math.floor(k / 3) * escala, escala, escala);
+      }
+    }
+  }
+}
+
+function textoCentro(txt, y, cor, escala = 1) {
+  texto(txt, Math.round((W - larguraTexto(txt, escala)) / 2), y, cor, escala);
+}
+
+// =============================================================
+//  SPRITES (pré-desenhados uma vez)
+// =============================================================
+function novoSprite(w, h, desenho) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  desenho(g);
+  return c;
+}
+
+// Bloco com rebite em pirâmide, como as paredes do jogo
+const BLOCO = novoSprite(8, 8, g => {
+  g.fillStyle = COR.blocoMeio; g.fillRect(0, 0, 8, 8);
+  for (let i = 0; i < 4; i++) {
+    g.fillStyle = COR.blocoLuz;  g.fillRect(i, i, 8 - 2 * i, 1);           // topo
+    g.fillStyle = COR.bloco;     g.fillRect(i, i + 1, 1, 7 - 2 * i);       // esquerda
+    g.fillStyle = COR.blocoSomb; g.fillRect(7 - i, i + 1, 1, 7 - 2 * i);   // direita
+    g.fillStyle = COR.blocoSomb; g.fillRect(i + 1, 7 - i, 6 - 2 * i, 1);   // base
+  }
+});
+
+// Nuvem pequena (decoração do fundo)
+const NUVEM = novoSprite(16, 8, g => {
+  const m = [
+    "0000111111000000",
+    "0011111111110000",
+    "0111111111111100",
+    "1111111111111110",
+    "1111111111111111",
+    "0111111111111110",
+    "0011111111111100",
+    "0000011111100000"
+  ];
+  g.fillStyle = COR.nuvem;
+  m.forEach((linha, y) => [...linha].forEach((v, x) => { if (v === "1") g.fillRect(x, y, 1, 1); }));
+});
+
+// Bolinha do jogador, gerada por cor
+const spritesBola = {};
+function spriteBola(cor) {
+  if (!spritesBola[cor]) {
+    spritesBola[cor] = novoSprite(11, 11, g => {
+      for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) {
+        const d = Math.hypot(x - 5, y - 5);
+        if (d <= 5.2) {
+          g.fillStyle = d > 4.2 ? "#000" : cor;
+          g.fillRect(x, y, 1, 1);
+        }
+      }
+      g.fillStyle = "#fcfcfc";
+      g.fillRect(3, 3, 2, 1); g.fillRect(3, 4, 1, 1);
+    });
+  }
+  return spritesBola[cor];
+}
+
+// Moeda girando: 4 quadros com larguras diferentes
+const MOEDA = [7, 5, 1, 5].map(larg => novoSprite(9, 9, g => {
+  const x0 = Math.floor((9 - larg) / 2);
+  g.fillStyle = COR.moedaSomb; g.fillRect(x0, 1, larg, 7);
+  g.fillRect(x0 + 1, 0, Math.max(1, larg - 2), 9);
+  if (larg > 2) {
+    g.fillStyle = COR.moeda; g.fillRect(x0 + 1, 1, larg - 2, 7);
+    if (larg >= 5) { g.fillStyle = COR.moedaSomb; g.fillRect(4, 3, 1, 3); }
+  }
+}));
+
+// Posições fixas das nuvens
+const nuvens = [[40, 46], [150, 70], [92, 120], [196, 150], [30, 166]];
+
+// =============================================================
+//  ESTADO DO JOGO
+// =============================================================
+const jogadores = {};
+let moeda = novaMoeda();
+let ws = null;
+let conectado = false;
+let msgsNoSegundo = 0, quadrosNoSegundo = 0, atrasos = [];
+let piscarMoeda = 0;   // quadros de "pegou!" na tela
+
+function novaMoeda() {
+  return {
+    x: CAMPO.x0 + 12 + Math.random() * (CAMPO.x1 - CAMPO.x0 - 24),
+    y: CAMPO.y0 + 12 + Math.random() * (CAMPO.y1 - CAMPO.y0 - 24)
+  };
+}
+
+function obterJogador(id) {
+  if (!jogadores[id]) {
+    const indice = Object.keys(jogadores).length;
+    jogadores[id] = {
+      id, num: indice + 1,
+      cor: CORES_JOG[indice % CORES_JOG.length],
+      pitch: 0, roll: 0, x: 0, y: 0, z: 1,
+      bx: W / 2, by: (CAMPO.y0 + CAMPO.y1) / 2,
+      vx: 0, vy: 0, pontos: 0, taxa: 0
+    };
+  }
+  return jogadores[id];
+}
+
+// =============================================================
+//  SOM (bipe curto ao pegar a moeda)
+// =============================================================
+let audio = null;
+function bipe() {
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = "square";
+  o.frequency.setValueAtTime(988, audio.currentTime);
+  o.frequency.setValueAtTime(1319, audio.currentTime + 0.06);
+  g.gain.setValueAtTime(0.06, audio.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.22);
+  o.connect(g).connect(audio.destination);
+  o.start(); o.stop(audio.currentTime + 0.22);
+}
+// O navegador só libera áudio depois de um clique ou tecla
+const liberarAudio = () => { if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)(); };
+window.addEventListener("pointerdown", liberarAudio, { once: true });
+window.addEventListener("keydown", liberarAudio, { once: true });
+
+// =============================================================
+//  CONEXÃO WEBSOCKET COM O SERVIDOR
+// =============================================================
+function conectar() {
+  const endereco = inputEndereco.value.trim();
+  if (!endereco) {
+    definirStatus(false, "falta o endereço do servidor");
+    inputEndereco.focus();
+    return;
+  }
+  if (ws) ws.close();
+  ws = new WebSocket(`ws://${endereco}/browser`);
+  definirStatus(false, "conectando…");
+
+  ws.onopen = () => { conectado = true; definirStatus(true, "conectado"); };
+
+  ws.onmessage = (evento) => {
+    msgsNoSegundo++;
+    let msg;
+    try { msg = JSON.parse(evento.data); } catch { return; }
+    if (msg.tipo !== "estado") return;
+    if (msg.enviadoEm) atrasos.push(Date.now() - msg.enviadoEm);
+
+    const ativos = new Set();
+    for (const d of msg.jogadores) {
+      const j = obterJogador("esp-" + d.id);
+      j.pitch = d.pitch; j.roll = d.roll;
+      j.x = d.x; j.y = d.y; j.z = d.z;
+      j.taxa = d.taxa || 0; j.ip = d.ip;
+      ativos.add(j.id);
+    }
+    for (const id of Object.keys(jogadores)) {
+      if (id.startsWith("esp-") && !ativos.has(id)) delete jogadores[id];
+    }
+  };
+
+  ws.onclose = () => {
+    conectado = false;
+    definirStatus(false, "sem conexão, tentando de novo");
+    setTimeout(() => { if (ws && ws.readyState === WebSocket.CLOSED) conectar(); }, 2000);
+  };
+
+  ws.onerror = () => definirStatus(false, "não foi possível conectar. Confira o IP e a porta 8080");
+}
+
+function definirStatus(ligado, txt) {
+  const el = document.getElementById("status");
+  el.classList.toggle("on", ligado);
+  el.classList.toggle("off", !ligado);
+  document.getElementById("txtStatus").textContent = txt;
+}
+document.getElementById("btnConectar").onclick = conectar;
+
+// =============================================================
+//  CONTROLES: teclado e botões do aparelho
+// =============================================================
+const teclas = {};
+const chkTeclado = document.getElementById("modoTeclado");
+
+function ligarTeclado() {
+  if (!chkTeclado.checked) { chkTeclado.checked = true; obterJogador("teclado"); }
+}
+chkTeclado.onchange = (e) => {
+  if (e.target.checked) obterJogador("teclado");
+  else delete jogadores["teclado"];
+};
+
+function marcarTecla(nome, apertada) {
+  teclas[nome] = apertada;
+  const el = document.querySelector(`.tecla[data-tecla="${nome}"]`);
+  if (el) el.classList.toggle("apertada", apertada);
+}
+
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" && e.target.type === "text") return;
+  if (e.key.startsWith("Arrow")) { e.preventDefault(); ligarTeclado(); marcarTecla(e.key, true); }
+  if (e.key === "Enter" && e.target === document.body) zerarPlacar();
+});
+window.addEventListener("keyup", e => { if (e.key.startsWith("Arrow")) marcarTecla(e.key, false); });
+
+document.querySelectorAll(".tecla[data-tecla]").forEach(el => {
+  const nome = el.dataset.tecla;
+  el.addEventListener("pointerdown", e => { e.preventDefault(); ligarTeclado(); marcarTecla(nome, true); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(t => el.addEventListener(t, () => marcarTecla(nome, false)));
+});
+
+function zerarPlacar() { for (const j of Object.values(jogadores)) j.pontos = 0; }
+document.getElementById("btnStart").addEventListener("click", zerarPlacar);
+document.getElementById("btnMenu").addEventListener("click", () => {
+  document.getElementById("ajustes").scrollIntoView({ behavior: "smooth" });
+  document.getElementById("invX").focus({ preventScroll: true });
+});
+document.querySelectorAll(".tecla[tabindex]").forEach(el => {
+  el.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); el.click(); } });
+});
+
+function atualizarTeclado() {
+  const j = jogadores["teclado"];
+  if (!j) return;
+  const alvoRoll  = (teclas.ArrowRight ? 30 : 0) - (teclas.ArrowLeft ? 30 : 0);
+  const alvoPitch = (teclas.ArrowDown  ? 30 : 0) - (teclas.ArrowUp   ? 30 : 0);
+  j.roll  += (alvoRoll  - j.roll)  * 0.2;
+  j.pitch += (alvoPitch - j.pitch) * 0.2;
+}
+
+// =============================================================
+//  FÍSICA
+// =============================================================
+function atualizarFisica() {
+  const invX = document.getElementById("invX").checked ? -1 : 1;
+  const invY = document.getElementById("invY").checked ? -1 : 1;
+  const trocar = document.getElementById("trocarEixos").checked;
+
+  for (const j of Object.values(jogadores)) {
+    let ax = trocar ? j.pitch : j.roll;
+    let ay = trocar ? j.roll  : j.pitch;
+    if (j.id === "teclado") { ax = j.roll; ay = j.pitch; }
+    else { ax *= invX; ay *= invY; }
+
+    j.vx = (j.vx + ax * SENSIBILIDADE * 0.1) * ATRITO;
+    j.vy = (j.vy + ay * SENSIBILIDADE * 0.1) * ATRITO;
+    j.bx += j.vx;
+    j.by += j.vy;
+
+    const r = RAIO_BOLA;
+    if (j.bx < CAMPO.x0 + r) { j.bx = CAMPO.x0 + r; j.vx *= -0.5; }
+    if (j.bx > CAMPO.x1 - r) { j.bx = CAMPO.x1 - r; j.vx *= -0.5; }
+    if (j.by < CAMPO.y0 + r) { j.by = CAMPO.y0 + r; j.vy *= -0.5; }
+    if (j.by > CAMPO.y1 - r) { j.by = CAMPO.y1 - r; j.vy *= -0.5; }
+
+    if (Math.hypot(j.bx - moeda.x, j.by - moeda.y) < RAIO_BOLA + RAIO_MOEDA) {
+      j.pontos++;
+      moeda = novaMoeda();
+      piscarMoeda = 20;
+      bipe();
+    }
+  }
+}
+
+// =============================================================
+//  DESENHO
+// =============================================================
+function desenharParedes() {
+  for (let x = 0; x < W; x += 8) {
+    ctx.drawImage(BLOCO, x, 16);                       // teto
+    for (let y = 200; y < H; y += 8) ctx.drawImage(BLOCO, x, y);   // chão (3 fileiras)
+  }
+  for (let y = 24; y < 200; y += 8) {
+    ctx.drawImage(BLOCO, 0, y);                        // parede esquerda
+    ctx.drawImage(BLOCO, W - 8, y);                    // parede direita
+  }
+}
+
+function desenharHUD() {
+  ctx.fillStyle = COR.fundo;
+  ctx.fillRect(0, 0, W, 16);
+  const lista = Object.values(jogadores).slice(0, 5);
+  if (!lista.length) {
+    texto("PEGUE A MOEDA", 8, 6, COR.hud);
+  }
+  let x = 8;
+  for (const j of lista) {
+    const rot = (j.id === "teclado" ? "T" : "P" + j.num) + " " + String(j.pontos).padStart(2, "0");
+    ctx.drawImage(spriteBola(j.cor), x, 3);
+    texto(rot, x + 14, 6, j.cor);
+    x += larguraTexto(rot) + 24;
+  }
+  texto("1-1", W - 8 - larguraTexto("1-1"), 6, COR.hud);
+}
+
+function desenharMensagem(linha1, linha2) {
+  const largura = Math.max(larguraTexto(linha1, 2), linha2 ? larguraTexto(linha2) : 0) + 20;
+  const x = Math.round((W - largura) / 2), y = 92;
+  ctx.fillStyle = COR.fundo;
+  ctx.fillRect(x, y, largura, linha2 ? 34 : 24);
+  ctx.strokeStyle = COR.hud;
+  ctx.strokeRect(x + 1.5, y + 1.5, largura - 3, (linha2 ? 34 : 24) - 3);
+  textoCentro(linha1, y + 7, COR.aviso, 2);
+  if (linha2) textoCentro(linha2, y + 23, COR.nuvem);
+}
+
+function desenhar(t) {
+  ctx.fillStyle = COR.fundo;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const [nx, ny] of nuvens) ctx.drawImage(NUVEM, nx, ny);
+  desenharParedes();
+  desenharHUD();
+
+  // moeda
+  const quadro = Math.floor(t / 120) % 4;
+  ctx.drawImage(MOEDA[quadro], Math.round(moeda.x) - 4, Math.round(moeda.y) - 4);
+
+  // jogadores
+  for (const j of Object.values(jogadores)) {
+    const bx = Math.round(j.bx) - 5, by = Math.round(j.by) - 5;
+    ctx.drawImage(spriteBola(j.cor), bx, by);
+    const rot = j.id === "teclado" ? "T" : "P" + j.num;
+    texto(rot, Math.round(j.bx) - Math.floor(larguraTexto(rot) / 2), by - 8, j.cor);
+  }
+
+  // avisos dentro da tela
+  const total = Object.keys(jogadores).length;
+  if (!conectado && !total) {
+    if (Math.floor(t / 500) % 2 === 0) desenharMensagem("SEM SINAL", "CONECTE AO SERVIDOR");
+    else desenharMensagem("SEM SINAL");
+  } else if (!total) {
+    desenharMensagem("PRONTO", "LIGUE UMA PLACA");
+  }
+
+  if (piscarMoeda > 0) {
+    if (piscarMoeda % 6 < 3) textoCentro("+1", 186, COR.moeda);
+    piscarMoeda--;
+  }
+}
+
+// =============================================================
+//  PAINEL ABAIXO DO APARELHO
+// =============================================================
+function atualizarPainel() {
+  const todos = Object.values(jogadores);
+  document.getElementById("listaJogadores").innerHTML = todos.map(j => {
+    const nome = j.id === "teclado" ? "Teclado" : "Placa " + j.num;
+    const det = j.id === "teclado"
+      ? "setas do teclado"
+      : `inclinação ${j.roll.toFixed(0)}° / ${j.pitch.toFixed(0)}°, ${j.taxa} leituras por segundo`;
+    return `<div class="jogador"><span class="cor" style="background:${j.cor}"></span><span><b>${nome}</b>, ${j.pontos} pontos, ${det}</span></div>`;
+  }).join("");
+  document.getElementById("mJog").textContent = todos.length;
+}
+
+setInterval(() => {
+  document.getElementById("mMsgs").textContent = msgsNoSegundo;
+  document.getElementById("mFps").textContent = quadrosNoSegundo;
+  if (atrasos.length) {
+    const media = atrasos.reduce((a, b) => a + b, 0) / atrasos.length;
+    document.getElementById("mAtraso").textContent = Math.max(0, Math.round(media));
+  }
+  msgsNoSegundo = 0; quadrosNoSegundo = 0; atrasos = [];
+  atualizarPainel();
+}, 1000);
+
+// =============================================================
+//  LOOP PRINCIPAL (~60 quadros por segundo)
+// =============================================================
+function quadro(t) {
+  atualizarTeclado();
+  atualizarFisica();
+  desenhar(t);
+  quadrosNoSegundo++;
+  requestAnimationFrame(quadro);
+}
+requestAnimationFrame(quadro);
+
+if (inputEndereco.value) conectar();
+</script>
+</body>
+</html>
